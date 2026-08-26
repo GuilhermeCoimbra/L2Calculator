@@ -1,0 +1,487 @@
+<div class="l2-calc-wrapper" id="l2-theme-root">
+    <!-- TOPO DO CARD -->
+    <div class="l2-calc-header">
+        <div class="header-titles">
+            <h2>L2 Farm Calculator</h2>
+            <p>Insira o tempo testado, os valores obtidos e projete seus ganhos por períodos fixos ou personalizados</p>
+        </div>
+        <div class="header-controls">
+            <div class="period-tabs">
+                <button type="button" class="p-tab" onclick="changePeriod('diario', this)">Diário</button>
+                <button type="button" class="p-tab" onclick="changePeriod('semanal', this)">Semanal</button>
+                <button type="button" class="p-tab" onclick="changePeriod('mensal', this)">Mensal</button>
+                <button type="button" class="p-tab" onclick="changePeriod('custom', this)">Personalizado</button>
+            </div>
+            <button type="button" class="theme-toggle" onclick="toggleTheme()" id="theme-btn">☀️</button>
+        </div>
+    </div>
+
+    <!-- CAMPO DINÂMICO PARA DIAS PERSONALIZADOS -->
+    <div id="custom-days-container" class="l2-card p-15 mb-20" style="display: none;">
+        <div class="input-block" style="max-width: 200px; margin: 0 auto; text-align: center;">
+            <label>Projetar para quantos dias?</label>
+            <div class="input-suffix-wrapper">
+                <input type="number" id="cfg-custom-days" value="15" min="1" oninput="runGlobalCalculation(); saveCurrentState();" style="text-align: center; padding-right: 12px;">
+            </div>
+        </div>
+    </div>
+
+    <!-- CONTEÚDO PRINCIPAL (GRID RESPONSIVO) -->
+    <div class="l2-calc-grid">
+        
+        <!-- ESQUERDA: LISTA DE INSTÂNCIAS / SPOTS -->
+        <div class="l2-left-column">
+            <div class="l2-card">
+                <div class="card-header-action">
+                    <h3>Spots de Farm & Instâncias</h3>
+                    <div class="header-action-buttons">
+                        <button type="button" class="btn-toggle-all" onclick="toggleAllSpotsCollapse()">🔼 Minimizar Todos</button>
+                        <button type="button" class="btn-add" onclick="createNewInstanceRow()">+ Adicionar Local</button>
+                    </div>
+                </div>
+                
+                <div id="instances-list-root">
+                    <!-- Gerado dinamicamente via JS -->
+                </div>
+            </div>
+        </div>
+
+        <!-- DIREITA: CONFIGURAÇÕES E RESUMO -->
+        <div class="l2-right-column">
+            <div class="sticky-sidebar">
+                
+                <!-- Bloco de Cotações -->
+                <div class="l2-card p-15">
+                    <div class="card-title-simple">Cotação do Servidor</div>
+                    <div class="input-block mt-15">
+                        <label>Pride p/ 1 Milhão de Adena</label>
+                        <div class="input-suffix-wrapper">
+                            <input type="number" id="cfg-pride-adena" value="0.45" step="0.05" oninput="runGlobalCalculation(); saveCurrentState();">
+                            <span class="suffix-tag">Pride</span>
+                        </div>
+                    </div>
+                    <div class="input-block mt-15">
+                        <label>Valor de 1 Pride Coin</label>
+                        <div class="input-suffix-wrapper">
+                            <input type="number" id="cfg-pride-real" value="0.8" step="0.05" oninput="runGlobalCalculation(); saveCurrentState();">
+                            <span class="suffix-tag">R$</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Bloco de Resumo (Roxo) -->
+                <div class="l2-summary-card mt-20">
+                    <div class="summary-title">
+                        <span id="summary-title-text">Resumo Mensal</span>
+                    </div>
+                    
+                    <div class="summary-box-full mt-15">
+                        <span class="box-label">EXPERIÊNCIA TOTAL PROJETADA</span>
+                        <strong class="box-val-main" id="out-xp">0 B <span class="small-tag">XP</span></strong>
+                    </div>
+
+                    <div class="summary-split-row mt-12">
+                        <div class="summary-box-half">
+                            <span class="box-label">ADENA</span>
+                            <strong class="box-val-sub" id="out-adena">0 M</strong>
+                        </div>
+                        <div class="summary-box-half">
+                            <span class="box-label">L COINS</span>
+                            <strong class="box-val-sub" id="out-lcoin">0 K</strong>
+                        </div>
+                    </div>
+
+                    <div class="summary-box-full mt-12 rgb-tint-pride">
+                        <span class="box-label">PRIDE COINS GANHOS</span>
+                        <strong class="box-val-medium" id="out-pride">0.00 <span class="small-tag-pride">Pride</span></strong>
+                    </div>
+
+                    <div class="summary-final-money-box mt-15">
+                        <span class="box-label-money">FATURAMENTO ESTIMADO</span>
+                        <strong id="out-real">R$ 0,00</strong>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+/* VARIÁVEIS DE CORES */
+.l2-calc-wrapper {
+    --bg-main: #0d111a; --bg-card: #111827; --bg-input: #1f2937; --bg-input-unit: #273142;
+    --border-color: #1f2937; --border-input: #374151; --text-main: #f3f4f6; --text-muted: #94a3b8;
+    --text-labels: #64748b; --bg-tab-active: #4f46e5; --bg-tabs: #161f38;
+}
+.l2-calc-wrapper.light-theme {
+    --bg-main: #f1f5f9; --bg-card: #ffffff; --bg-input: #f8fafc; --bg-input-unit: #e2e8f0;
+    --border-color: #cbd5e1; --border-input: #94a3b8; --text-main: #0f172a; --text-muted: #475569;
+    --text-labels: #64748b; --bg-tab-active: #4f46e5; --bg-tabs: #cbd5e1;
+}
+
+.l2-calc-wrapper { background-color: var(--bg-main); color: var(--text-muted); font-family: 'Inter', sans-serif; padding: 30px; border-radius: 16px; max-width: 1320px; margin: 20px auto; box-sizing: border-box; transition: background 0.3s; width: 100%; overflow: hidden; }
+.l2-calc-wrapper * { box-sizing: border-box; }
+.l2-calc-wrapper input[type=number]::-webkit-inner-spin-button, .l2-calc-wrapper input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+.l2-calc-wrapper input[type=number] { -moz-appearance: textfield; }
+
+/* FIX DE ALINHAMENTO DO SELETOR SUPERIOR */
+.l2-calc-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; gap: 20px; flex-wrap: wrap; }
+.header-titles { min-width: 280px; flex: 1; }
+.header-titles h2 { color: var(--text-main); margin: 0 0 5px 0; font-size: 24px; font-weight: 700; letter-spacing: -0.5px; }
+.header-titles p { margin: 0; color: var(--text-labels); font-size: 13px; }
+.header-controls { display: flex; align-items: center; gap: 15px; }
+
+/* TRAVA DE LINHA ÚNICA SÓLIDA PARA OS BOTÕES (EVITA QUEBRA) */
+.period-tabs { background: var(--bg-tabs); padding: 4px; border-radius: 8px; display: inline-flex; gap: 2px; flex-wrap: nowrap; align-items: center; }
+.p-tab { background: transparent; border: none; color: var(--text-muted); padding: 6px 14px; font-size: 13px; font-weight: 600; border-radius: 6px; cursor: pointer; transition: all 0.2s; white-space: nowrap; }
+.p-tab.active { background: var(--bg-tab-active); color: #fff; }
+.theme-toggle { background: var(--bg-tabs); border: none; color: var(--text-main); width: 32px; height: 32px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 14px; }
+
+.l2-calc-grid { display: grid; grid-template-columns: 1fr 340px; gap: 25px; align-items: start; }
+.sticky-sidebar { position: sticky; top: 20px; }
+
+.l2-card { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 12px; width: 100%; }
+.p-15 { padding: 20px; }
+.card-header-action { display: flex; justify-content: space-between; align-items: center; padding: 20px; border-bottom: 1px solid var(--border-color); gap: 10px; flex-wrap: wrap; }
+.card-header-action h3 { margin: 0; color: var(--text-main); font-size: 15px; font-weight: 600; }
+.header-action-buttons { display: flex; gap: 8px; flex-wrap: wrap; }
+.card-title-simple { color: var(--text-main); font-size: 14px; font-weight: 600; }
+
+.btn-add { background: #4f46e5; color: #fff; border: none; padding: 6px 14px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; white-space: nowrap; }
+.btn-toggle-all { background: var(--bg-input); color: var(--text-main); border: 1px solid var(--border-input); padding: 6px 14px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; white-space: nowrap; }
+
+.input-block label { display: block; font-size: 10px; color: var(--text-labels); font-weight: 700; text-transform: uppercase; margin-bottom: 6px; letter-spacing: 0.5px; white-space: nowrap; }
+.input-suffix-wrapper { position: relative; display: flex; align-items: center; width: 100%; }
+.input-suffix-wrapper input { width: 100%; background: var(--bg-input); border: 1px solid var(--border-input); border-radius: 6px; color: var(--text-main); padding: 10px 60px 10px 12px; font-size: 14px; }
+.suffix-tag { position: absolute; right: 12px; color: var(--text-labels); font-size: 12px; font-weight: 600; pointer-events: none; }
+
+/* LINHAS */
+.hud-row-instance { padding: 20px; border-bottom: 1px solid var(--border-color); }
+.hud-row-instance:last-child { border-bottom: none; }
+.hud-top-meta { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+.hud-title-area { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; }
+.hud-checkbox { width: 16px; height: 16px; accent-color: #10b981; cursor: pointer; margin: 0; flex-shrink: 0; }
+.hud-name-input { background: transparent; border: none; color: var(--text-main); font-size: 14px; font-weight: 600; width: 100%; min-width: 0; }
+.hud-name-input:focus { outline: none; border-bottom: 1px dashed #4f46e5; }
+.btn-collapse-row { background: var(--bg-input); border: 1px solid var(--border-input); color: var(--text-main); cursor: pointer; font-size: 12px; padding: 4px 10px; border-radius: 6px; }
+
+.hud-inputs-grid { display: grid; grid-template-columns: 100px 75px 1.4fr 1.4fr 0.81fr 115px 30px; gap: 10px; align-items: end; margin-top: 12px; transition: max-height 0.2s ease-out, opacity 0.15s; overflow: hidden; }
+.hud-inputs-grid.collapsed { max-height: 0 !important; padding: 0 !important; margin: 0 !important; opacity: 0; pointer-events: none; }
+
+.hud-input-unit-combo { display: flex; background: var(--bg-input); border: 1px solid var(--border-input); border-radius: 6px; overflow: hidden; width: 100%; }
+.hud-input-unit-combo input { background: transparent; border: none; color: var(--text-main); padding: 8px 10px; font-size: 13px; width: 100%; min-width: 0; }
+.hud-input-unit-combo input:focus { outline: none; }
+.hud-unit-select { background: var(--bg-input-unit); border: none; color: var(--text-muted); font-size: 11px; font-weight: 700; padding: 0 8px; cursor: pointer; border-left: 1px solid var(--border-input); outline: none; width: 42px; text-align: center; }
+
+.time-split-fields { display: flex; gap: 4px; align-items: center; width: 100%; }
+.time-split-fields input { width: 100%; background: var(--bg-input); border: 1px solid var(--border-input); border-radius: 6px; color: var(--text-main); padding: 8px; font-size: 13px; text-align: center; }
+.time-split-fields span { color: var(--text-labels); font-weight: 700; }
+.projection-field input { width: 100%; background: var(--bg-input); border: 1px solid #4f46e5; border-radius: 6px; color: #fff; padding: 8px; font-size: 13px; text-align: center; font-weight: 600; }
+.hud-select-freq { background: var(--bg-input); border: 1px solid var(--border-input); color: var(--text-main); font-size: 12px; font-weight: 500; padding: 8px; border-radius: 6px; width: 100%; cursor: pointer; outline: none; }
+
+.btn-del-row { background: transparent; border: none; color: var(--text-labels); font-size: 15px; cursor: pointer; text-align: center; height: 37px; display: flex; align-items: center; justify-content: center; }
+.btn-del-row:hover { color: #f56565; }
+
+/* ROXO RESULTADOS */
+.l2-summary-card { background: #2e2a72; border-radius: 12px; padding: 20px; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.5); }
+.summary-title { color: #fff; font-size: 15px; font-weight: 700; }
+.summary-box-full { background: #211d59; border-radius: 8px; padding: 12px 15px; display: flex; flex-direction: column; }
+.summary-split-row { display: flex; gap: 12px; }
+.summary-box-half { background: #211d59; border-radius: 8px; padding: 12px 15px; flex: 1; display: flex; flex-direction: column; }
+.box-label { font-size: 10px; color: #818cf8; font-weight: 700; margin-bottom: 4px; letter-spacing: 0.5px; }
+.box-val-main { color: #fff; font-size: 20px; font-weight: 700; }
+.box-val-sub { color: #fff; font-size: 16px; font-weight: 700; }
+.box-val-medium { color: #fff; font-size: 18px; font-weight: 700; }
+.small-tag, .small-tag-pride { font-size: 11px; color: #818cf8; font-weight: 500; margin-left: 2px; }
+.rgb-tint-pride { background: #281c5c; border: 1px solid #4c1d95; }
+.rgb-tint-pride .box-label { color: #a78bfa; }
+.summary-final-money-box { background: #059669; border-radius: 8px; padding: 15px; display: flex; flex-direction: column; text-align: left; }
+.box-label-money { font-size: 10px; color: #a7f3d0; font-weight: 800; letter-spacing: 0.5px; margin-bottom: 2px; }
+.summary-final-money-box strong { color: #fff; font-size: 26px; font-weight: 800; letter-spacing: -0.5px; }
+
+/* RESPONSIVIDADE INTERNA DE MAPAS */
+@media (max-width: 1120px) {
+    .l2-calc-grid { grid-template-columns: 1fr; gap: 20px; }
+    .sticky-sidebar { position: static !important; }
+}
+@media (max-width: 850px) {
+    .hud-inputs-grid { grid-template-columns: repeat(2, 1fr) 40px; gap: 12px; }
+    .btn-del-row { grid-column: 3; grid-row: 1 / span 3; height: 100%; align-self: center; }
+    .period-tabs { display: flex; width: 100%; }
+    .p-tab { flex: 1; text-align: center; padding: 6px 5px; font-size: 11px; }
+}
+@media (max-width: 480px) {
+    .hud-inputs-grid { grid-template-columns: 1fr; gap: 10px; }
+    .btn-del-row { grid-column: 1; grid-row: auto; width: 100%; background: rgba(245, 101, 101, 0.1); color: #f56565; border-radius: 6px; height: 35px; }
+}
+</style>
+
+<script>
+let activePeriod = 'mensal';
+let rowIdIndex = 0;
+let allSpotsCollapsedState = false;
+
+const defaultPreset = [
+    { name: "Mundo Aberto (Ex: Hot Springs)", freq: "diario", h: 0, m: 2, xp: 17, xpU: "M", adena: 70, adenaU: "K", lcoin: 0, projHours: 10, enabled: true, collapsed: false }
+];
+
+window.addEventListener('DOMContentLoaded', () => {
+    loadSavedState();
+    runGlobalCalculation();
+});
+
+function toggleTheme() {
+    const root = document.getElementById('l2-theme-root');
+    const btn = document.getElementById('theme-btn');
+    root.classList.toggle('light-theme');
+    btn.innerText = root.classList.contains('light-theme') ? '🌙' : '☀️';
+    localStorage.setItem('l2_calc_theme_solo', root.classList.contains('light-theme') ? 'light' : 'dark');
+}
+
+function changePeriod(targetPeriod, buttonNode) {
+    activePeriod = targetPeriod;
+    document.querySelectorAll('.period-tabs .p-tab').forEach(b => b.classList.remove('active'));
+    buttonNode.classList.add('active');
+    
+    const customDaysContainer = document.getElementById('custom-days-container');
+    if (targetPeriod === 'custom') {
+        customDaysContainer.style.display = 'block';
+        document.getElementById('summary-title-text').innerText = 'Resumo Personalizado';
+    } else {
+        customDaysContainer.style.display = 'none';
+        document.getElementById('summary-title-text').innerText = targetPeriod === 'diario' ? 'Resumo Diário' : targetPeriod === 'semanal' ? 'Resumo Semanal' : 'Resumo Mensal';
+    }
+    localStorage.setItem('l2_calc_period_solo', targetPeriod);
+    runGlobalCalculation();
+}
+
+function toggleSingleSpotCollapse(btn, gridId) {
+    const grid = document.getElementById(gridId);
+    grid.classList.toggle('collapsed');
+    btn.innerText = grid.classList.contains('collapsed') ? '🔽 Expandir' : '🔼 Recolher';
+    saveCurrentState();
+}
+
+function toggleAllSpotsCollapse() {
+    allSpotsCollapsedState = !allSpotsCollapsedState;
+    document.querySelector('.btn-toggle-all').innerText = allSpotsCollapsedState ? '🔽 Expandir Todos' : '🔼 Minimizar Todos';
+    
+    document.querySelectorAll('.hud-row-instance').forEach(row => {
+        const grid = row.querySelector('.hud-inputs-grid');
+        const btn = row.querySelector('.btn-collapse-row');
+        if (allSpotsCollapsedState) {
+            grid.classList.add('collapsed'); btn.innerText = '🔽 Expandir';
+        } else {
+            grid.classList.remove('collapsed'); btn.innerText = '🔼 Recolher';
+        }
+    });
+    saveCurrentState();
+}
+
+function createNewInstanceRow(data = null) {
+    rowIdIndex++;
+    const root = document.getElementById('instances-list-root');
+    const row = document.createElement('div');
+    row.className = 'hud-row-instance';
+    row.id = 'hud-row-' + rowIdIndex;
+
+    const name = data ? data.name : "Nova Instância / Spot";
+    const freq = data ? data.freq : "diario";
+    const h = data ? data.h : 0; const m = data ? data.m : 0;
+    const xp = data ? data.xp : 0; const xpU = data ? data.xpU : "M";
+    const adena = data ? data.adena : 0; const adenaU = data ? data.adenaU : "K";
+    const lcoin = data ? data.lcoin : 0; const projHours = data ? data.projHours : 1;
+    const isEnabled = data ? data.enabled !== false : true;
+    const isCollapsed = data ? data.collapsed === true : allSpotsCollapsedState;
+
+    const gridId = 'grid-inputs-' + rowIdIndex;
+
+    row.innerHTML = `
+        <div class="hud-top-meta">
+            <div class="hud-title-area">
+                <input type="checkbox" class="hud-checkbox" ${isEnabled ? 'checked' : ''} onchange="runGlobalCalculation(); saveCurrentState();">
+                <input type="text" class="hud-name-input" value="${name}" oninput="saveCurrentState();">
+            </div>
+            <div class="hud-row-actions-right">
+                <button type="button" class="btn-collapse-row" onclick="toggleSingleSpotCollapse(this, '${gridId}')">${isCollapsed ? '🔽 Expandir' : '🔼 Recolher'}</button>
+            </div>
+        </div>
+        <div class="hud-inputs-grid ${isCollapsed ? 'collapsed' : ''}" id="${gridId}">
+            <div class="input-block">
+                <label>Tempo Real</label>
+                <div class="time-split-fields">
+                    <input type="number" class="val-hours" value="${h}" min="0" oninput="runGlobalCalculation(); saveCurrentState();">
+                    <span class="sep">:</span>
+                    <input type="number" class="val-mins" value="${m}" min="0" max="59" oninput="runGlobalCalculation(); saveCurrentState();">
+                </div>
+            </div>
+            <div class="input-block projection-field">
+                <label style="color:#818cf8;">Projeção (H)</label>
+                <input type="number" class="val-projection" value="${projHours}" min="1" oninput="runGlobalCalculation(); saveCurrentState();">
+            </div>
+            <div class="input-block">
+                <label>XP Total</label>
+                <div class="hud-input-unit-combo">
+                    <input type="number" class="val-xp" value="${xp}" step="any" oninput="runGlobalCalculation(); saveCurrentState();">
+                    <select class="hud-unit-select unit-xp" onchange="runGlobalCalculation(); saveCurrentState();">
+                        <option value="K" ${xpU === 'K' ? 'selected' : ''}>K</option><option value="M" ${xpU === 'M' ? 'selected' : ''}>M</option><option value="B" ${xpU === 'B' ? 'selected' : ''}>B</option>
+                    </select>
+                </div>
+            </div>
+            <div class="input-block">
+                <label>Adena Total</label>
+                <div class="hud-input-unit-combo">
+                    <input type="number" class="val-adena" value="${adena}" step="any" oninput="runGlobalCalculation(); saveCurrentState();">
+                    <select class="hud-unit-select unit-adena" onchange="runGlobalCalculation(); saveCurrentState();">
+                        <option value="K" ${adenaU === 'K' ? 'selected' : ''}>K</option><option value="M" ${adenaU === 'M' ? 'selected' : ''}>M</option><option value="B" ${adenaU === 'B' ? 'selected' : ''}>B</option>
+                    </select>
+                </div>
+            </div>
+            <div class="input-block">
+                <label>L-Coins Total</label>
+                <div class="hud-input-unit-combo"><input type="number" class="val-lcoin" value="${lcoin}" oninput="runGlobalCalculation(); saveCurrentState();"></div>
+            </div>
+            <div class="input-block">
+                <label>Frequência</label>
+                <select class="hud-select-freq" onchange="runGlobalCalculation(); saveCurrentState();">
+                    <option value="diario" ${freq === 'diario' ? 'selected' : ''}>Diária</option><option value="semanal" ${freq === 'semanal' ? 'selected' : ''}>Semanal</option>
+                </select>
+            </div>
+            <button type="button" class="btn-del-row" onclick="document.getElementById('${row.id}').remove(); runGlobalCalculation(); saveCurrentState();">🗑️</button>
+        </div>
+    `;
+    root.appendChild(row);
+    if (!data) saveCurrentState();
+}
+
+function parseMultiplier(value, unit) {
+    const raw = parseFloat(value) || 0;
+    if (unit === 'K') return raw * 1000;
+    if (unit === 'M') return raw * 1000000;
+    if (unit === 'B') return raw * 1000000000;
+    return raw;
+}
+
+function formatOutput(num, fixedDigits = 2) {
+    if (num >= 1e12) return (num / 1e12).toFixed(fixedDigits) + ' T';
+    if (num >= 1e9) return (num / 1e9).toFixed(fixedDigits) + ' B';
+    if (num >= 1e6) return (num / 1e6).toFixed(fixedDigits) + ' M';
+    if (num >= 1e3) return (num / 1e3).toFixed(fixedDigits) + ' K';
+    return num.toFixed(fixedDigits);
+}
+
+function runGlobalCalculation() {
+    let dailyXp = 0, dailyAdena = 0, dailyLcoin = 0;
+    let weeklyXp = 0, weeklyAdena = 0, weeklyLcoin = 0;
+
+    const priceMillion = parseFloat(document.getElementById('cfg-pride-adena').value) || 0;
+    const priceReal = parseFloat(document.getElementById('cfg-pride-real').value) || 0;
+    const customDays = parseFloat(document.getElementById('cfg-custom-days').value) || 1;
+
+    document.querySelectorAll('.hud-row-instance').forEach(row => {
+        if (!row.querySelector('.hud-checkbox').checked) return;
+
+        const freq = row.querySelector('.hud-select-freq').value;
+        const realH = parseFloat(row.querySelector('.val-hours').value) || 0;
+        const realM = parseFloat(row.querySelector('.val-mins').value) || 0;
+        const projH = parseFloat(row.querySelector('.val-projection').value) || 0;
+        
+        let realTimeDec = realH + (realM / 60);
+        if (realTimeDec <= 0) realTimeDec = 1;
+
+        const rawXp = parseMultiplier(row.querySelector('.val-xp').value, row.querySelector('.unit-xp').value);
+        const rawAdena = parseMultiplier(row.querySelector('.val-adena').value, row.querySelector('.unit-adena').value);
+        const rawLcoin = parseFloat(row.querySelector('.val-lcoin').value) || 0;
+
+        const xpLine = (rawXp / realTimeDec) * projH;
+        const adenaLine = (rawAdena / realTimeDec) * projH;
+        const lcoinLine = (rawLcoin / realTimeDec) * projH;
+
+        if (freq === 'semanal') {
+            weeklyXp += xpLine; weeklyAdena += adenaLine; weeklyLcoin += lcoinLine;
+        } else {
+            dailyXp += xpLine; dailyAdena += adenaLine; dailyLcoin += lcoinLine;
+        }
+    });
+
+    let finalXp = 0, finalAdena = 0, finalLcoin = 0;
+
+    if (activePeriod === 'diario') {
+        finalXp = dailyXp + (weeklyXp / 7); finalAdena = dailyAdena + (weeklyAdena / 7); finalLcoin = dailyLcoin + (weeklyLcoin / 7);
+    } else if (activePeriod === 'semanal') {
+        finalXp = (dailyXp * 7) + weeklyXp; finalAdena = (dailyAdena * 7) + weeklyAdena; finalLcoin = (dailyLcoin * 7) + weeklyLcoin;
+    } else if (activePeriod === 'mensal') {
+        finalXp = (dailyXp * 30) + (weeklyXp * 4.28); finalAdena = (dailyAdena * 30) + (weeklyAdena * 4.28); finalLcoin = (dailyLcoin * 30) + (weeklyLcoin * 4.28);
+    } else if (activePeriod === 'custom') {
+        finalXp = (dailyXp * customDays) + (weeklyXp * (customDays / 7));
+        finalAdena = (dailyAdena * customDays) + (weeklyAdena * (customDays / 7));
+        finalLcoin = (dailyLcoin * customDays) + (weeklyLcoin * (customDays / 7));
+    }
+
+    const finalPride = (finalAdena / 1000000) * priceMillion;
+    const finalReal = finalPride * priceReal;
+
+    document.getElementById('out-xp').innerHTML = `${formatOutput(finalXp, 2)} <span class="small-tag">XP</span>`;
+    document.getElementById('out-adena').innerText = `${formatOutput(finalAdena, 2)}`;
+    document.getElementById('out-lcoin').innerText = `${formatOutput(finalLcoin, 2)}`;
+    document.getElementById('out-pride').innerHTML = `${finalPride.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span class="small-tag-pride">Pride</span>`;
+    document.getElementById('out-real').innerText = finalReal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+}
+
+function saveCurrentState() {
+    const state = {
+        pride_adena: document.getElementById('cfg-pride-adena').value,
+        pride_real: document.getElementById('cfg-pride-real').value,
+        custom_days: document.getElementById('cfg-custom-days').value,
+        all_collapsed_state: allSpotsCollapsedState,
+        rows: []
+    };
+    document.querySelectorAll('.hud-row-instance').forEach(row => {
+        state.rows.push({
+            name: row.querySelector('.hud-name-input').value,
+            freq: row.querySelector('.hud-select-freq').value,
+            h: row.querySelector('.val-hours').value,
+            m: row.querySelector('.val-mins').value,
+            projHours: row.querySelector('.val-projection').value,
+            xp: row.querySelector('.val-xp').value,
+            xpU: row.querySelector('.unit-xp').value,
+            adena: row.querySelector('.val-adena').value,
+            adenaU: row.querySelector('.unit-adena').value,
+            lcoin: row.querySelector('.val-lcoin').value,
+            enabled: row.querySelector('.hud-checkbox').checked,
+            collapsed: row.querySelector('.hud-inputs-grid').classList.contains('collapsed')
+        });
+    });
+    localStorage.setItem('l2_calc_solo_state', JSON.stringify(state));
+}
+
+function loadSavedState() {
+    const savedPeriod = localStorage.getItem('l2_calc_period_solo');
+    if (savedPeriod) {
+        activePeriod = savedPeriod;
+        document.querySelectorAll('.period-tabs .p-tab').forEach(b => b.classList.remove('active'));
+        const idx = savedPeriod === 'diario' ? 0 : savedPeriod === 'semanal' ? 1 : savedPeriod === 'mensal' ? 2 : 3;
+        document.querySelectorAll('.period-tabs .p-tab')[idx].classList.add('active');
+        document.getElementById('custom-days-container').style.display = savedPeriod === 'custom' ? 'block' : 'none';
+    }
+    const savedTheme = localStorage.getItem('l2_calc_theme_solo');
+    if (savedTheme === 'light') document.getElementById('l2-theme-root').classList.add('light-theme');
+
+    const raw = localStorage.getItem('l2_calc_solo_state');
+    if (raw) {
+        try {
+            const s = JSON.parse(raw);
+            document.getElementById('cfg-pride-adena').value = s.pride_adena || 0.45;
+            document.getElementById('cfg-pride-real').value = s.pride_real || 0.8;
+            document.getElementById('cfg-custom-days').value = s.custom_days || 15;
+            allSpotsCollapsedState = s.all_collapsed_state || false;
+            if(allSpotsCollapsedState) document.querySelector('.btn-toggle-all').innerText = '🔽 Expandir Todos';
+
+            if (s.rows && s.rows.length > 0) {
+                s.rows.forEach(r => createNewInstanceRow(r));
+            } else { defaultPreset.forEach(p => createNewInstanceRow(p)); }
+        } catch(e) { defaultPreset.forEach(p => createNewInstanceRow(p)); }
+    } else { defaultPreset.forEach(p => createNewInstanceRow(p)); }
+}
+</script>
